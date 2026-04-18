@@ -1,3 +1,5 @@
+// app/moments/page.tsx
+
 'use client';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
