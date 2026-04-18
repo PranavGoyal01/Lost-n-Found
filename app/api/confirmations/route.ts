@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const { data: otherPost } = await supabase.from('moments').select('user_id').eq('id', other_post_id).single();
     
     await supabase.from('confirmations').insert([{
-      user_a_id: user.id, user_b_id: otherPost.user_id,
+      user_a_id: user.id, user_b_id: otherPost?.user_id,
       moment_a_id: current_post_id, moment_b_id: other_post_id,
       user_a_confirmed: true, confidence_score: 0.85 // Mocked score
     }]);
