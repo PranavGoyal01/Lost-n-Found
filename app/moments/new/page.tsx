@@ -35,18 +35,38 @@ function LocationPickerMap({ center, selectedPoint, onChange }: { center: Coordi
 				return;
 			}
 
-			delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: string })._getIconUrl;
-			L.Icon.Default.mergeOptions({ iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png", iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png", shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png" });
+			const markerIcon = L.divIcon({
+				html: `<span class="moment-pin-core"></span><span class="moment-pin-pulse"></span>`,
+				className: "moment-pin-wrapper",
+				iconSize: [26, 26],
+				iconAnchor: [13, 13],
+			});
 
 			const initialCenter = initialCenterRef.current;
 			const initialSelectedPoint = initialSelectedPointRef.current;
 
-			const map = L.map(mapHostRef.current, { zoomControl: true }).setView([initialCenter.lat, initialCenter.lng], 14);
+			const map = L.map(mapHostRef.current, {
+				zoomControl: false,
+				attributionControl: false,
+			}).setView([initialCenter.lat, initialCenter.lng], 14);
 
-			L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "&copy; OpenStreetMap contributors" }).addTo(map);
+			L.control
+				.zoom({
+					position: "bottomright",
+				})
+				.addTo(map);
+
+			L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+				attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
+				subdomains: "abcd",
+				maxZoom: 20,
+			}).addTo(map);
 
 			const initialPoint = initialSelectedPoint ?? initialCenter;
-			const marker = L.marker([initialPoint.lat, initialPoint.lng], { draggable: true }).addTo(map);
+			const marker = L.marker([initialPoint.lat, initialPoint.lng], {
+				draggable: true,
+				icon: markerIcon,
+			}).addTo(map);
 
 			marker.on("dragend", () => {
 				const position = marker.getLatLng();
@@ -89,8 +109,10 @@ function LocationPickerMap({ center, selectedPoint, onChange }: { center: Coordi
 	}, [selectedPoint]);
 
 	return (
-		<div className='rounded-xl overflow-hidden border border-gray-200 shadow-sm'>
-			<div ref={mapHostRef} className='h-64 w-full' />
+		<div className='modern-map-shell'>
+			<div className='modern-map-badge'>Precise Pin Mode</div>
+			<div className='modern-map-crosshair' aria-hidden='true' />
+			<div ref={mapHostRef} className='h-72 w-full modern-map-canvas' />
 		</div>
 	);
 }
@@ -229,15 +251,15 @@ export default function NewMoment() {
 				{locationLabel ? <p className='text-xs text-gray-500 leading-relaxed'>{locationLabel}</p> : null}
 			</div>
 
-			<div className='space-y-2'>
+			<div className='space-y-3'>
 				<p className='text-sm text-gray-700 font-medium'>Refine the exact point (drag pin, zoom, or tap map)</p>
 				<LocationPickerMap center={mapCenter} selectedPoint={selectedPoint} onChange={setSelectedPoint} />
 				{selectedPoint ? (
-					<p className='text-xs text-gray-600'>
+					<p className='text-xs text-gray-600 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2'>
 						Selected coordinates: {selectedPoint.lat}, {selectedPoint.lng}
 					</p>
 				) : (
-					<p className='text-xs text-gray-500'>Search a place first, then move the pin for exact location.</p>
+					<p className='text-xs text-gray-500 rounded-lg border border-dashed border-slate-300 bg-white px-3 py-2'>Search a place first, then move the pin for exact location.</p>
 				)}
 			</div>
 			<textarea placeholder='Describe them, you, and the interaction...' onChange={(e) => setForm({ ...form, description: e.target.value })} className='border p-2 h-32 rounded' required />
