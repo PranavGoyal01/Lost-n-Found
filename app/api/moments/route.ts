@@ -13,8 +13,19 @@ export async function POST(req: NextRequest) {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { description, date, time } = await req.json();
+  const { description, date, time, latitude, longitude } = await req.json();
   const event_time = `${date}T${time}:00Z`;
+  const hasValidLocation =
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180;
+
+  const location = hasValidLocation
+    ? `POINT(${Number(longitude)} ${Number(latitude)})`
+    : null;
 
   const embedding = await vectorizeString(description);
 
@@ -55,6 +66,7 @@ export async function POST(req: NextRequest) {
         event_time,
         description,
         description_embedding: embedding,
+        location,
       },
     ])
     .select()
