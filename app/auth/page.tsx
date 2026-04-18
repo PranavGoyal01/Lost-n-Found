@@ -37,6 +37,12 @@ export default function AuthPage() {
           email,
           password
         });
+        if (data.user) {
+          console.log("User found in client:", data.user);
+          // Manual check: Can we see the session in local storage?
+          console.log("Session exists:", !!(await supabase.auth.getSession()).data.session);
+          router.push('/home');
+        }
 
         if (error) throw error;
 
@@ -48,9 +54,9 @@ export default function AuthPage() {
             .single();
 
           // Standard redirect logic:
-          // Fixed your logic here: Send to /onboarding if name is missing
+          // Fixed your logic here: Send to /home if name is missing
           if (!profile?.name || profileError) {
-            router.push('/onboarding');
+            router.push('/home');
           } else {
             router.push('/home');
           }
@@ -114,9 +120,9 @@ export default function AuthPage() {
             />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading} 
+          <button
+            type="submit"
+            disabled={loading}
             className="bg-black text-white p-3 rounded-lg font-bold mt-2 disabled:opacity-50 hover:bg-gray-800 transition-all"
           >
             {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
