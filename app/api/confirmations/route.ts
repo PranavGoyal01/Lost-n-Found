@@ -6,11 +6,19 @@ import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-type UserContact = { id: string; name: string | null; phone_number: string | null; likes: string | null; profile_picture: string | null };
+type UserContact = {
+	id: string;
+	name: string | null;
+	phone_number: string | null;
+	age: number | null;
+	likes: string | null;
+	dislikes: string | null;
+	profile_picture: string | null;
+};
 type MomentContext = { id: string; description: string | null; location: unknown; event_time: string | null };
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
-	const { data } = await supabase.from("users").select("id, name, phone_number, likes, profile_picture").eq("id", userId).single();
+	const { data } = await supabase.from("users").select("id, name, phone_number, age, likes, dislikes, profile_picture").eq("id", userId).single();
 
 	return data;
 }
@@ -25,6 +33,38 @@ async function getMomentsByIds(momentIds: string[]): Promise<MomentContext[]> {
 function normalizeLikes(likes: string | null): string {
 	const value = likes?.trim();
 	return value && value.length > 0 ? value : "not shared";
+}
+
+function normalizeDislikes(dislikes: string | null): string {
+	const value = dislikes?.trim();
+	return value && value.length > 0 ? value : "not shared";
+}
+
+function parseLatLngFromLocation(location: unknown): { lat: number; lng: number } | null {
+	if (!location) return null;
+
+	if (typeof location === "string") {
+		const pointMatch = location.match(/POINT\(([-0-9.]+)\s+([-0-9.]+)\)/i);
+		if (pointMatch) {
+			const lng = Number(pointMatch[1]);
+			const lat = Number(pointMatch[2]);
+			if (Number.isFinite(lat) && Number.isFinite(lng)) {
+				return { lat, lng };
+			}
+		}
+	}
+
+	if (typeof location === "object" && location !== null) {
+		const maybeCoordinates = (location as { coordinates?: [number, number] }).coordinates;
+		if (Array.isArray(maybeCoordinates) && maybeCoordinates.length === 2) {
+			const [lng, lat] = maybeCoordinates;
+			if (Number.isFinite(lat) && Number.isFinite(lng)) {
+				return { lat, lng };
+			}
+		}
+	}
+
+	return null;
 }
 
 function formatLocation(location: unknown): string {
@@ -64,6 +104,41 @@ function buildLocationContext(moments: MomentContext[]): string {
 	return segments.join("; ");
 }
 
+function buildCommonMeetingLocation(moments: MomentContext[]): string {
+	const points = moments
+		.map((moment) => parseLatLngFromLocation(moment.location))
+		.filter((point): point is { lat: number; lng: number } => Boolean(point));
+
+	if (points.length === 0) {
+		return "unknown area";
+	}
+
+	if (points.length === 1) {
+		const p = points[0];
+		return `near lat ${p.lat.toFixed(5)}, lng ${p.lng.toFixed(5)}`;
+	}
+
+	const sum = points.reduce(
+		(acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
+		{ lat: 0, lng: 0 }
+	);
+
+	const avgLat = sum.lat / points.length;
+	const avgLng = sum.lng / points.length;
+	return `near midpoint lat ${avgLat.toFixed(5)}, lng ${avgLng.toFixed(5)}`;
+}
+
+function buildProfileSummary(user: UserContact | null): string {
+	if (!user) return "unknown profile";
+
+	const name = user.name?.trim() || "Unknown";
+	const age = user.age ?? "unknown";
+	const likes = normalizeLikes(user.likes);
+	const dislikes = normalizeDislikes(user.dislikes);
+
+	return `name: ${name}; age: ${age}; likes: ${likes}; dislikes: ${dislikes}`;
+}
+
 function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): string {
 	const mine = normalizeLikes(myLikes).toLowerCase();
 	const theirs = normalizeLikes(theirLikes).toLowerCase();
@@ -88,14 +163,29 @@ function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): 
 	return "meet for a relaxed coffee and conversation at a spot you both like";
 }
 
-async function getIdealDateIdea(myLikes: string | null, theirLikes: string | null, locationContext: string): Promise<string> {
-	const k2Idea = await generateIdealDateFromK2({ userALikes: normalizeLikes(myLikes), userBLikes: normalizeLikes(theirLikes), locationContext });
+async function getIdealDateIdeaFromProfiles(userA: UserContact | null, userB: UserContact | null, moments: MomentContext[]): Promise<{ ideaForA: string; ideaForB: string }> {
+	const locationContext = buildLocationContext(moments);
+	const commonMeetingLocation = buildCommonMeetingLocation(moments);
 
-	if (k2Idea) {
-		return k2Idea;
-	}
+	const [ideaForAFromK2, ideaForBFromK2] = await Promise.all([
+		generateIdealDateFromK2({
+			userAProfile: buildProfileSummary(userA),
+			userBProfile: buildProfileSummary(userB),
+			commonMeetingLocation,
+			locationContext,
+		}),
+		generateIdealDateFromK2({
+			userAProfile: buildProfileSummary(userB),
+			userBProfile: buildProfileSummary(userA),
+			commonMeetingLocation,
+			locationContext,
+		}),
+	]);
 
-	return buildIdealDateIdea(myLikes, theirLikes);
+	return {
+		ideaForA: ideaForAFromK2 || buildIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null),
+		ideaForB: ideaForBFromK2 || buildIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null),
+	};
 }
 
 function buildMatchedTemplate(theirPhone: string | null, theirLikes: string | null, idealDate: string): string {
@@ -164,9 +254,7 @@ export async function POST(req: NextRequest) {
 
 			const [userA, userB] = await Promise.all([getUserContact(updated.user_a_id), getUserContact(updated.user_b_id)]);
 			const moments = await getMomentsByIds([updated.moment_a_id, updated.moment_b_id]);
-			const locationContext = buildLocationContext(moments);
-
-			const [idealDateForA, idealDateForB] = await Promise.all([getIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null, locationContext), getIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null, locationContext)]);
+			const { ideaForA: idealDateForA, ideaForB: idealDateForB } = await getIdealDateIdeaFromProfiles(userA, userB, moments);
 
 			const messageForA = buildMatchedTemplate(userB?.phone_number ?? null, userB?.likes ?? null, idealDateForA);
 			const messageForB = buildMatchedTemplate(userA?.phone_number ?? null, userA?.likes ?? null, idealDateForB);

@@ -8,6 +8,7 @@ import ProfilePictureUpload from '@/app/components/ProfilePictureUpload';
 
 const inputClass = "w-full text-[14px] px-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-300 outline-none focus:border-gray-400 transition-colors";
 const labelClass = "block text-[12px] font-medium text-gray-500 mb-1.5";
+const textareaClass = "w-full text-[14px] px-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-300 outline-none focus:border-gray-400 transition-colors min-h-[96px] resize-y";
 
 export default function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -132,6 +133,40 @@ export default function Profile() {
                   placeholder="+1 000 000 0000"
                 />
               </div>
+              <div>
+                <label className={labelClass}>Age</label>
+                <input
+                  type="number"
+                  min={18}
+                  max={120}
+                  className={inputClass}
+                  value={editForm.age ?? ''}
+                  onChange={(e) => {
+                    const raw = e.target.value.trim();
+                    const parsed = Number.parseInt(raw, 10);
+                    setEditForm({ ...editForm, age: raw === '' || Number.isNaN(parsed) ? null : parsed });
+                  }}
+                  placeholder="e.g. 24"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Likes</label>
+                <textarea
+                  className={textareaClass}
+                  value={editForm.likes || ''}
+                  onChange={(e) => setEditForm({ ...editForm, likes: e.target.value })}
+                  placeholder="Coffee, hikes, indie music, art museums..."
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Dislikes</label>
+                <textarea
+                  className={textareaClass}
+                  value={editForm.dislikes || ''}
+                  onChange={(e) => setEditForm({ ...editForm, dislikes: e.target.value })}
+                  placeholder="Crowded bars, spicy food, early mornings..."
+                />
+              </div>
               <div className="flex gap-3 mt-2">
                 <button
                   onClick={handleSave}
@@ -156,6 +191,9 @@ export default function Profile() {
                   { label: 'Name', value: profile.name || 'Not set' },
                   { label: 'Email', value: profile.email },
                   { label: 'Phone', value: profile.phone_number || 'Not set' },
+                  { label: 'Age', value: profile.age ?? 'Not set' },
+                  { label: 'Likes', value: profile.likes || 'Not set' },
+                  { label: 'Dislikes', value: profile.dislikes || 'Not set' },
                 ].map((field) => (
                   <div key={field.label} className="px-4 py-3.5">
                     <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">{field.label}</p>
