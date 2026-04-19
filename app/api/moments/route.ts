@@ -1,8 +1,8 @@
 // app/api/moments/route.ts
-// app/api/moments/route.ts
-import { vectorizeString } from "@/lib/ai";
 import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
+import { vectorizeString } from "@/lib/ai";
+
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
@@ -58,6 +58,8 @@ export async function POST(req: NextRequest) {
       match_threshold: 0.7,
       match_count: 15,
       current_user_id: user.id, // ✨ THIS WAS MISSING ✨
+      query_location: location,
+      query_event_time: event_time,
     },
   );
 
