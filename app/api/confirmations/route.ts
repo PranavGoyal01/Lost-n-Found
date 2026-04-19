@@ -5,12 +5,58 @@ import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-type UserContact = { id: string; name: string | null; phone_number: string | null };
+type UserContact = {
+	id: string;
+	name: string | null;
+	phone_number: string | null;
+	likes: string | null;
+	profile_picture: string | null;
+};
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
-	const { data } = await supabase.from("users").select("id, name, phone_number").eq("id", userId).single();
+	const { data } = await supabase.from("users").select("id, name, phone_number, likes, profile_picture").eq("id", userId).single();
 
 	return data;
+}
+
+function normalizeLikes(likes: string | null): string {
+	const value = likes?.trim();
+	return value && value.length > 0 ? value : "not shared";
+}
+
+function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): string {
+	const mine = normalizeLikes(myLikes).toLowerCase();
+	const theirs = normalizeLikes(theirLikes).toLowerCase();
+	const combined = `${mine} ${theirs}`;
+
+	if (combined.includes("coffee") || combined.includes("cafe")) {
+		return "grab a coffee at a cozy cafe and take a walk together";
+	}
+
+	if (combined.includes("food") || combined.includes("restaurant") || combined.includes("dinner")) {
+		return "try a new restaurant together and share your favorite dishes";
+	}
+
+	if (combined.includes("music") || combined.includes("concert")) {
+		return "go to a live music set and then get dessert nearby";
+	}
+
+	if (combined.includes("hike") || combined.includes("nature") || combined.includes("outdoor")) {
+		return "take a scenic walk or easy hike and stop for drinks after";
+	}
+
+	return "meet for a relaxed coffee and conversation at a spot you both like";
+}
+
+function buildMatchedTemplate(theirPhone: string | null, theirLikes: string | null, idealDate: string): string {
+	return [
+		"Lost&Found:",
+		"You guys matched your moment!",
+		`Their number is: ${theirPhone?.trim() || "not shared"}`,
+		`Their likes are: ${normalizeLikes(theirLikes)}`,
+		`Your ideal date together would be: ${idealDate}`,
+		"Congrats!",
+	].join("\n");
 }
 
 async function notifyUser(contact: UserContact | null, message: string) {
@@ -74,11 +120,13 @@ export async function POST(req: NextRequest) {
 			await supabaseAuthenticated.from("matches").insert([{ user_a_id: updated.user_a_id, user_b_id: updated.user_b_id, moment_a_id: updated.moment_a_id, moment_b_id: updated.moment_b_id }]);
 
 			const [userA, userB] = await Promise.all([getUserContact(updated.user_a_id), getUserContact(updated.user_b_id)]);
+			const idealDateForA = buildIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null);
+			const idealDateForB = buildIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null);
 
-			const userAName = userA?.name?.trim() || "Someone";
-			const userBName = userB?.name?.trim() || "Someone";
+			const messageForA = buildMatchedTemplate(userB?.phone_number ?? null, userB?.likes ?? null, idealDateForA);
+			const messageForB = buildMatchedTemplate(userA?.phone_number ?? null, userA?.likes ?? null, idealDateForB);
 
-			await Promise.all([notifyUser(userA, `Lost n Found: ${userBName} confirmed your moment match. You are now connected.`), notifyUser(userB, `Lost n Found: ${userAName} confirmed your moment match. You are now connected.`)]);
+			await Promise.all([notifyUser(userA, messageForA), notifyUser(userB, messageForB)]);
 		}
 	} else {
 		// Fetch the other user's ID
@@ -93,8 +141,20 @@ export async function POST(req: NextRequest) {
 		if (created?.user_a_id && created?.user_b_id) {
 			const [requester, recipient] = await Promise.all([getUserContact(created.user_a_id), getUserContact(created.user_b_id)]);
 			const requesterName = requester?.name?.trim() || "Someone";
+			const requesterPhoto = requester?.profile_picture?.trim();
+			const initialLines = [
+				"Lost&Found:",
+				`${requesterName} thinks your moments match.`,
+				"Open the app to confirm this connection.",
+				"",
+				`Name: ${requesterName}`,
+			];
 
-			await notifyUser(recipient, `Lost n Found: ${requesterName} thinks your moments match. Open the app to confirm this connection.`);
+			if (requesterPhoto) {
+				initialLines.push(`Photo: ${requesterPhoto}`);
+			}
+
+			await notifyUser(recipient, initialLines.join("\n"));
 		}
 	}
 
