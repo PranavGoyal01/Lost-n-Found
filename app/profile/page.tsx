@@ -1,40 +1,30 @@
-// app/profile/page.tsx
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { UserProfile } from '@/app/types';
-
-// 👇 Import the uploader component we just built
+import Link from 'next/link';
 import ProfilePictureUpload from '@/app/components/ProfilePictureUpload';
+
+const inputClass = "w-full text-[14px] px-4 py-3 border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-300 outline-none focus:border-gray-400 transition-colors";
+const labelClass = "block text-[12px] font-medium text-gray-500 mb-1.5";
 
 export default function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [saving, setSaving] = useState<boolean>(false);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editForm, setEditForm] = useState<Partial<UserProfile>>({});
-  
   const router = useRouter();
-  
-  // Guard to prevent updates if the component unmounts or before it's ready
   const isInitialMount = useRef(true);
 
   const fetchProfile = useCallback(async () => {
     try {
-      // Use getSession for a quicker, more reliable check in effects
       const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
-        router.push('/auth');
-        return;
-      }
-
+      if (!session) { router.push('/auth'); return; }
       const res = await fetch(`/api/users?id=${session.user.id}`);
       if (!res.ok) throw new Error('Failed to fetch profile');
-      
       const data: UserProfile = await res.json();
-      
-      // Update state only if we aren't in a racing condition
       setProfile(data);
       setEditForm(data);
     } catch (err) {
@@ -45,36 +35,23 @@ export default function Profile() {
   }, [router]);
 
   useEffect(() => {
-    // Only run the fetch once on mount
-    if (isInitialMount.current) {
-      fetchProfile();
-      isInitialMount.current = false;
-    }
+    if (isInitialMount.current) { fetchProfile(); isInitialMount.current = false; }
   }, [fetchProfile]);
 
   const handleSave = async () => {
-    setLoading(true);
+    setSaving(true);
     const { data: { session } } = await supabase.auth.getSession();
-    
     try {
-      // Note: Ensure your API route is /api/users/
-      const res = await fetch('/api/users', { 
+      const res = await fetch('/api/users', {
         method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}` 
-        },
-        body: JSON.stringify(editForm)
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify(editForm),
       });
-
-      if (res.ok) {
-        setIsEditing(false);
-        await fetchProfile();
-      }
+      if (res.ok) { setIsEditing(false); await fetchProfile(); }
     } catch (err) {
-      console.error("Save failed", err);
+      console.error('Save failed', err);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
@@ -85,97 +62,125 @@ export default function Profile() {
 
   if (loading && !profile) {
     return (
-      <div className="flex items-center justify-center min-h-screen text-black">
-        <p className="animate-pulse">Loading Profile...</p>
+      <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
+        <nav className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+          <span className="text-[15px] font-medium tracking-tight text-gray-900">Lost&amp;Found</span>
+        </nav>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-[14px] text-gray-400 animate-pulse">Loading…</p>
+        </div>
       </div>
     );
   }
 
-  if (!profile) return <div className="p-8 text-center text-black">Profile not found.</div>;
+  if (!profile) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center" style={{ fontFamily: 'system-ui, sans-serif' }}>
+        <p className="text-[14px] text-gray-400">Profile not found.</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-md mx-auto text-black">
-      <h1 className="text-2xl font-bold mb-4">Your Profile</h1>
-      <div className="p-6 border rounded-xl bg-white shadow-md space-y-4">
-        
-        {/* ✨ THE NEW PROFILE PICTURE SECTION ✨ */}
-        <div className="border-b pb-6 mb-4">
-          <ProfilePictureUpload 
-            userId={profile.id} 
-            currentPictureUrl={profile.profile_picture || null} 
-            onUploadSuccess={(newUrl) => {
-              // Update local state instantly so the UI reflects the new image
-              setProfile({ ...profile, profile_picture: newUrl });
-            }}
-          />
-        </div>
+    <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
+      {/* Nav */}
+      <nav className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
+        <span className="text-[15px] font-medium tracking-tight text-gray-900">Lost&amp;Found</span>
+        <Link href="/home" className="text-[13px] text-gray-400 hover:text-gray-700 transition-colors">Home</Link>
+      </nav>
 
-        {isEditing ? (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">NAME</label>
-              <input 
-                className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                value={editForm.name || ''}
-                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">PHONE</label>
-              <input 
-                className="w-full border p-3 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                value={editForm.phone_number || ''}
-                onChange={(e) => setEditForm({...editForm, phone_number: e.target.value})}
-              />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button 
-                onClick={handleSave} 
-                className="flex-1 bg-black text-white py-3 rounded-lg font-bold hover:bg-gray-800 transition-all"
-              >
-                Save
-              </button>
-              <button 
-                onClick={() => setIsEditing(false)} 
-                className="flex-1 border py-3 rounded-lg font-bold hover:bg-gray-50 transition-all"
-              >
-                Cancel
-              </button>
-            </div>
+      <main className="flex-1 flex flex-col items-center px-6 py-14">
+        <div className="w-full max-w-sm">
+
+          {/* Header */}
+          <div className="text-center mb-10">
+            <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">Account</p>
+            <h1
+              className="text-[32px] font-normal tracking-tight text-gray-900 leading-tight"
+              style={{ fontFamily: 'Georgia, Times New Roman, serif' }}
+            >
+              Your profile
+            </h1>
           </div>
-        ) : (
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="border-b pb-2">
-                <span className="text-xs text-gray-400 font-bold">NAME</span>
-                <p className="text-lg font-medium">{profile.name || 'Not set'}</p>
-              </div>
-              <div className="border-b pb-2">
-                <span className="text-xs text-gray-400 font-bold">EMAIL</span>
-                <p className="text-lg font-medium">{profile.email}</p>
-              </div>
-              <div className="border-b pb-2">
-                <span className="text-xs text-gray-400 font-bold">PHONE</span>
-                <p className="text-lg font-medium">{profile.phone_number || 'Not set'}</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3 pt-2">
-              <button 
-                onClick={() => setIsEditing(true)} 
-                className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition-all"
-              >
-                Edit Profile
-              </button>
-              <button 
-                onClick={handleSignOut} 
-                className="w-full text-red-600 font-bold py-2 text-sm hover:underline"
-              >
-                Sign Out
-              </button>
-            </div>
+
+          {/* Avatar */}
+          <div className="flex justify-center mb-10">
+            <ProfilePictureUpload
+              userId={profile.id}
+              currentPictureUrl={profile.profile_picture || null}
+              onUploadSuccess={(newUrl) => setProfile({ ...profile, profile_picture: newUrl })}
+            />
           </div>
-        )}
-      </div>
+
+          {isEditing ? (
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className={labelClass}>Name</label>
+                <input
+                  className={inputClass}
+                  value={editForm.name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  placeholder="Your name"
+                />
+              </div>
+              <div>
+                <label className={labelClass}>Phone</label>
+                <input
+                  className={inputClass}
+                  value={editForm.phone_number || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone_number: e.target.value })}
+                  placeholder="+1 000 000 0000"
+                />
+              </div>
+              <div className="flex gap-3 mt-2">
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="flex-1 bg-gray-900 text-white text-[14px] font-medium py-3 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40"
+                >
+                  {saving ? 'Saving…' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setIsEditing(false); setEditForm(profile); }}
+                  className="flex-1 border border-gray-200 text-[14px] text-gray-600 font-medium py-3 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-6">
+              {/* Fields */}
+              <div className="flex flex-col gap-0 border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100">
+                {[
+                  { label: 'Name', value: profile.name || 'Not set' },
+                  { label: 'Email', value: profile.email },
+                  { label: 'Phone', value: profile.phone_number || 'Not set' },
+                ].map((field) => (
+                  <div key={field.label} className="px-4 py-3.5">
+                    <p className="text-[11px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">{field.label}</p>
+                    <p className="text-[14px] text-gray-800">{field.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <button
+                onClick={() => setIsEditing(true)}
+                className="w-full bg-gray-900 text-white text-[14px] font-medium py-3 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                Edit profile
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="w-full text-[13px] text-gray-400 hover:text-red-500 transition-colors py-1"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 }
