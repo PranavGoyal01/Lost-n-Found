@@ -11,8 +11,6 @@
 [![Rookie Hack](https://img.shields.io/badge/Category-Rookie%20Hack-6BAF92?style=for-the-badge)](https://hackprinceton.com)
 [![Next.js](https://img.shields.io/badge/Built%20with-Next.js-000000?style=for-the-badge&logo=nextdotjs)](https://nextjs.org)
 
-[🌐 foundagain.us](https://foundagain.us) · [📽️ Devpost](#) · [🎨 Figma](#)
-
 </div>
 
 ---
@@ -58,12 +56,10 @@ Unlike dating apps where you swipe on strangers, Lost&Found is for people you've
 
 ### Frontend
 - **Next.js** — React framework for the web app
-- **GoDaddy** — Custom domain [`foundagain.us`](https://foundagain.us)
 
 ### Backend & Database
 - **Supabase** — PostgreSQL database + auth + edge functions
 - **pg_vector** — Vector similarity search for moment matching
-- **Daedalus VMs** — 24/7 background matching agent
 
 ### AI & Matching
 - **Gemini API** — Vectorization + semantic matching of moment descriptions
@@ -151,8 +147,8 @@ Matches { id, user_a_id, user_b_id, moment_a_id, moment_b_id, chat_id }
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-org/lostandfound.git
-cd lostandfound
+git clone https://github.com/PranavGoyal01/Lost-n-Found.git
+cd Lost-n-Found
 
 # Install dependencies
 npm install
@@ -202,6 +198,6 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 *We're turning missed connections into real ones.*
 *Because no one should wonder 'what if' forever."*
 
-**[foundagain.us](https://foundagain.us) · HackPrinceton Spring 2026**
+**HackPrinceton Spring 2026**
 
 </div>
