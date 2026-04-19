@@ -59,7 +59,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="px-8 py-5 border-t border-gray-100">
-        <p className="text-[12px] text-gray-400 text-center">© 2025 Lost&amp;Found</p>
+        <p className="text-[12px] text-gray-400 text-center">© 2026 Lost&amp;Found</p>
       </footer>
     </div>
   );
