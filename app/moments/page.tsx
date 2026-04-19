@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Moment } from '@/app/types';
 import Link from 'next/link';
+import { RPCMatchResult } from "@/app/types"; // make sure to import it
 
 export default function Moments() {
   const [moments, setMoments] = useState<Moment[]>([]);

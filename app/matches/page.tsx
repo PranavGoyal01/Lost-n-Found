@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import Link from 'next/link';
 import Avatar from '@/app/components/Avatar';
 
+// In Matches.tsx
+
 type PendingRecord = {
   id: string;
   moment_a_id: string;
@@ -15,6 +17,9 @@ type PendingRecord = {
   user_b_id: string;
   moments_a?: { description: string };
   moments_b?: { description: string };
+  // ✨ Add these two lines so TypeScript knows about the profiles!
+  users_a?: { name: string; profile_picture: string | null };
+  users_b?: { name: string; profile_picture: string | null };
 };
 
 export default function Matches() {
@@ -125,8 +130,15 @@ export default function Matches() {
                       const theirPostId = isUserA ? p.moment_b_id : p.moment_a_id;
                       const theirDescription = isUserA ? p.moments_b?.description : p.moments_a?.description;
 
+                      const theirPic = isUserA ? p.users_b?.profile_picture : p.users_a?.profile_picture;
+                      const theirName = isUserA ? p.users_b?.name : p.users_a?.name;
+
                       return (
                         <div key={p.id} className="border border-gray-200 rounded-lg p-5">
+                          <div className="flex items-center gap-3 mb-4">
+                            <Avatar src={theirPic} name={theirName} size={40} />
+                            <p className="text-[14px] font-medium text-gray-900">{theirName ?? 'Someone'}</p>
+                          </div>
                           <p className="text-[11px] font-medium tracking-wide uppercase mb-3 text-gray-400">
                             {waitingOnThem ? 'Awaiting their response' : 'They think it\'s you'}
                           </p>
@@ -165,30 +177,46 @@ export default function Matches() {
                   <p className="text-[14px] text-gray-400">No confirmed matches yet.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {matches.map((m) => (
-                      <div key={m.id} className="border border-gray-200 rounded-lg p-5">
-                        <p className="text-[11px] font-medium tracking-wide uppercase text-gray-400 mb-4">
-                          Matched
-                        </p>
-                        <div className="flex flex-col gap-3 mb-5">
-                          <div>
-                            <p className="text-[11px] text-gray-400 mb-1">You wrote</p>
-                            <p className="text-[14px] text-gray-700 leading-relaxed italic">
-                              &ldquo;{m.moments_a?.description}&rdquo;
-                            </p>
+                    {matches.map((m) => {
+                      // ✨ 1. Figure out who is who (so you don't show your own face/name)
+                      const isUserA = m.user_a_id === currentUserId;
+                      const theirName = isUserA ? m.users_b?.name : m.users_a?.name;
+                      const theirPic = isUserA ? m.users_b?.profile_picture : m.users_a?.profile_picture;
+
+                      // ✨ 2. Figure out who wrote which description
+                      const myDescription = isUserA ? m.moments_a?.description : m.moments_b?.description;
+                      const theirDescription = isUserA ? m.moments_b?.description : m.moments_a?.description;
+
+                      return (
+                        <div key={m.id} className="border border-gray-200 rounded-lg p-5">
+
+                          {/* ✨ 3. The newly added Avatar Header! */}
+                          <div className="flex items-center gap-3 mb-4 border-b border-gray-100 pb-4">
+                            <Avatar src={theirPic} name={theirName} size={40} />
+                            <div>
+                              <p className="text-[11px] font-medium tracking-wide uppercase text-gray-400">Matched with</p>
+                              <p className="text-[14px] font-medium text-gray-900">{theirName ?? 'Someone'}</p>
+                            </div>
                           </div>
-                          <div className="border-t border-gray-100 pt-3">
-                            <p className="text-[11px] text-gray-400 mb-1">They wrote</p>
-                            <p className="text-[14px] text-gray-700 leading-relaxed italic">
-                              &ldquo;{m.moments_b?.description}&rdquo;
-                            </p>
+
+                          <div className="flex flex-col gap-3 mb-2">
+                            <div>
+                              <p className="text-[11px] text-gray-400 mb-1">You wrote</p>
+                              <p className="text-[14px] text-gray-700 leading-relaxed italic">
+                                &ldquo;{myDescription}&rdquo;
+                              </p>
+                            </div>
+                            <div className="border-t border-gray-100 pt-3">
+                              <p className="text-[11px] text-gray-400 mb-1">They wrote</p>
+                              <p className="text-[14px] text-gray-700 leading-relaxed italic">
+                                &ldquo;{theirDescription}&rdquo;
+                              </p>
+                            </div>
                           </div>
+
                         </div>
-                        {/* <button className="w-full bg-gray-900 text-white text-[13px] font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors">
-                          Connect
-                        </button> */}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>

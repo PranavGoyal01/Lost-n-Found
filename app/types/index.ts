@@ -13,6 +13,19 @@ export interface GeoPoint {
   coordinates: [number, number];
 }
 
+// Add this to your types.ts
+export interface RPCMatchResult {
+  id: string;
+  user_id: string;
+  description: string;
+  event_time: string;
+  location: string | null; 
+  similarity: number;
+  user_name: string | null;             // The flat key we added in SQL
+  user_profile_picture: string | null;  // The flat key we added in SQL
+}
+
+
 export interface Moment {
   id: string;
   user_id: string;
@@ -57,4 +70,6 @@ export interface MatchRecord {
   moments_b: { description: string };
   users_a: { name: string; phone_number: string; profile_picture: string | null };
   users_b: { name: string; phone_number: string; profile_picture: string | null };
+  user_a_id: string; // ✨ ADD THIS
+  user_b_id: string; // ✨ ADD THIS
 }
