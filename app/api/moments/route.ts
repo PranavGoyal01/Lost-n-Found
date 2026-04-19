@@ -3,6 +3,35 @@ import { supabase } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { vectorizeString } from "@/lib/ai";
 
+function swapPronouns(text: string): string {
+  const pronounMap: Record<string, string> = {
+    i: "you",
+    me: "you",
+    my: "your",
+    mine: "yours",
+    myself: "yourself",
+    you: "I", // 'you' could be object or subject, but 'I' is the safest semantic fallback
+    your: "my",
+    yours: "mine",
+    yourself: "myself",
+  };
+
+  return text.replace(
+    /\b(i|me|my|mine|myself|you|your|yours|yourself)\b/gi,
+    (match) => {
+      const lowerMatch = match.toLowerCase();
+      const replacement = pronounMap[lowerMatch];
+
+      // Preserve original capitalization
+      if (match[0] === match[0].toUpperCase()) {
+        if (match === "I") return "You";
+        return replacement.charAt(0).toUpperCase() + replacement.slice(1);
+      }
+
+      return replacement;
+    },
+  );
+}
 
 export async function POST(req: NextRequest) {
   const token = req.headers.get("Authorization")?.replace("Bearer ", "");
@@ -47,23 +76,26 @@ export async function POST(req: NextRequest) {
     ? `SRID=4326;POINT(${Number(longitude)} ${Number(latitude)})`
     : null;
 
-  const embedding = await vectorizeString(description);
+  // ✨ 1. Vectorize the RAW string to save to the database
+  const rawEmbedding = await vectorizeString(description);
 
-  // 1. Fetch matches (Bump count to 15 to account for the ones we filter out)
-  // 1. Fetch matches (Now passing current_user_id!)
+  // ✨ 2. Swap the pronouns and vectorize the SWAPPED string to use for searching
+  const swappedDescription = swapPronouns(description);
+  const searchEmbedding = await vectorizeString(swappedDescription);
+
+  // 1. Fetch matches using the SWAPPED embedding
   const { data: similar, error: rpcError } = await supabase.rpc(
     "match_moments",
     {
-      query_embedding: embedding,
+      query_embedding: searchEmbedding, // ✨ Use the swapped one here!
       match_threshold: 0.7,
       match_count: 15,
-      current_user_id: user.id, // ✨ THIS WAS MISSING ✨
+      current_user_id: user.id,
       query_location: location,
       query_event_time: event_time,
     },
   );
 
-  // Let's also catch the error so it never silently fails again
   if (rpcError) {
     console.error("CRITICAL RPC ERROR:", rpcError);
   }
@@ -74,30 +106,28 @@ export async function POST(req: NextRequest) {
     .select("moment_a_id, moment_b_id")
     .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`);
 
-  // Create a quick lookup Set of those IDs
   const actedMomentIds = new Set<string>();
   pastConfirmations?.forEach((c) => {
     if (c.moment_a_id) actedMomentIds.add(c.moment_a_id);
     if (c.moment_b_id) actedMomentIds.add(c.moment_b_id);
   });
 
-  // 3. Filter out the user's own posts AND posts they've already matched with
+  // 3. Filter out posts they've already matched with
   const freshMatches = similar
     ? similar.filter((match: { id: string; user_id: string }) => {
-        const isNotMine = match.user_id !== user.id;
-        const isNotAlreadyConfirmed = !actedMomentIds.has(match.id);
-        return isNotMine && isNotAlreadyConfirmed;
+        return !actedMomentIds.has(match.id);
       })
     : [];
 
+  // ✨ 4. Insert the moment using the RAW data
   const { data: newMoment } = await supabase
     .from("moments")
     .insert([
       {
         user_id: user.id,
         event_time,
-        description,
-        description_embedding: embedding,
+        description, // Raw text
+        description_embedding: rawEmbedding, // Raw embedding
         location,
       },
     ])
