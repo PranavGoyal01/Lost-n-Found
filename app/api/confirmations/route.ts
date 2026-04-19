@@ -5,13 +5,7 @@ import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-type UserContact = {
-	id: string;
-	name: string | null;
-	phone_number: string | null;
-	likes: string | null;
-	profile_picture: string | null;
-};
+type UserContact = { id: string; name: string | null; phone_number: string | null; likes: string | null; profile_picture: string | null };
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
 	const { data } = await supabase.from("users").select("id, name, phone_number, likes, profile_picture").eq("id", userId).single();
@@ -49,14 +43,7 @@ function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): 
 }
 
 function buildMatchedTemplate(theirPhone: string | null, theirLikes: string | null, idealDate: string): string {
-	return [
-		"Lost&Found:",
-		"You guys matched your moment!",
-		`Their number is: ${theirPhone?.trim() || "not shared"}`,
-		`Their likes are: ${normalizeLikes(theirLikes)}`,
-		`Your ideal date together would be: ${idealDate}`,
-		"Congrats!",
-	].join("\n");
+	return ["Lost&Found:", "You guys matched your moment!", `Their number is: ${theirPhone?.trim() || "not shared"}`, `Their likes are: ${normalizeLikes(theirLikes)}`, `Your ideal date together would be: ${idealDate}`, "Congrats!"].join("\n");
 }
 
 async function notifyUser(contact: UserContact | null, message: string) {
@@ -142,13 +129,7 @@ export async function POST(req: NextRequest) {
 			const [requester, recipient] = await Promise.all([getUserContact(created.user_a_id), getUserContact(created.user_b_id)]);
 			const requesterName = requester?.name?.trim() || "Someone";
 			const requesterPhoto = requester?.profile_picture?.trim();
-			const initialLines = [
-				"Lost&Found:",
-				`${requesterName} thinks your moments match.`,
-				"Open the app to confirm this connection.",
-				"",
-				`Name: ${requesterName}`,
-			];
+			const initialLines = ["Lost&Found:", `${requesterName} thinks your moments match.`, "Open the app to confirm this connection.", "", `Name: ${requesterName}`];
 
 			if (requesterPhoto) {
 				initialLines.push(`Photo: ${requesterPhoto}`);
