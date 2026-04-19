@@ -1,5 +1,30 @@
 type K2DateIdeaInput = { userAProfile: string; userBProfile: string; commonMeetingLocation: string; locationContext: string };
 
+function sanitizeK2DateIdea(content: string): string | null {
+	const compact = content.replace(/\s+/g, " ").trim();
+	if (!compact) return null;
+
+	// If the model echoes prompt scaffolding, discard it and let caller fallback.
+	const looksLikePromptEcho = [
+		"you are planning one concise first-date idea",
+		"return only one sentence",
+		"person a profile:",
+		"person b profile:",
+		"common meeting location:",
+		"location context from both moments:",
+	].some((marker) => compact.toLowerCase().includes(marker));
+
+	if (looksLikePromptEcho) return null;
+
+	const firstSentence = compact.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || compact;
+	const cleaned = firstSentence.replace(/^['"`\s]+|['"`\s]+$/g, "").trim();
+
+	if (!cleaned) return null;
+	if (cleaned.length < 20 || cleaned.length > 220) return null;
+
+	return cleaned;
+}
+
 function getK2Config() {
 	return { apiKey: process.env.K2_THINK_V2_API_KEY, apiUrl: process.env.K2_THINK_V2_API_URL || "https://api.k2think.ai/v1/chat/completions", model: process.env.K2_THINK_V2_MODEL || "MBZUAI-IFM/K2-Think-v2" };
 }
@@ -37,8 +62,9 @@ export async function generateIdealDateFromK2(input: K2DateIdeaInput): Promise<s
 					{ role: "system", content: "You generate thoughtful but practical date ideas." },
 					{ role: "user", content: prompt },
 				],
-				temperature: 0.7,
-				max_tokens: 120,
+				temperature: 0.4,
+				max_tokens: 80,
+				stop: ["\n"],
 			}),
 		});
 
@@ -53,7 +79,7 @@ export async function generateIdealDateFromK2(input: K2DateIdeaInput): Promise<s
 			return null;
 		}
 
-		return content.replace(/\s+/g, " ").trim();
+		return sanitizeK2DateIdea(content);
 	} catch {
 		return null;
 	}

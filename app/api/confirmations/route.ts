@@ -150,6 +150,36 @@ function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): 
 	return "meet for a relaxed coffee and conversation at a spot you both like";
 }
 
+function normalizeIdealDateForTemplate(idealDate: string, myLikes: string | null, theirLikes: string | null): string {
+	const fallback = buildIdealDateIdea(myLikes, theirLikes);
+	const compact = idealDate.replace(/\s+/g, " ").trim();
+
+	if (!compact) return fallback;
+
+	const lower = compact.toLowerCase();
+	const blockedMarkers = [
+		"you are planning one concise first-date idea",
+		"return only one sentence",
+		"person a profile:",
+		"person b profile:",
+		"common meeting location:",
+		"location context from both moments:",
+		"we need to parse the user request",
+	];
+
+	if (blockedMarkers.some((marker) => lower.includes(marker))) {
+		return fallback;
+	}
+
+	const firstSentence = compact.match(/^[^.!?]+[.!?]?/)?.[0]?.trim() || compact;
+	const cleaned = firstSentence.replace(/^['"`\s]+|['"`\s]+$/g, "").trim();
+
+	if (cleaned.length < 20) return fallback;
+	if (cleaned.length > 220) return `${cleaned.slice(0, 217).trimEnd()}...`;
+
+	return cleaned;
+}
+
 async function getIdealDateIdeaFromProfiles(userA: UserContact | null, userB: UserContact | null, moments: MomentContext[]): Promise<{ ideaForA: string; ideaForB: string }> {
 	const locationContext = buildLocationContext(moments);
 	const commonMeetingLocation = buildCommonMeetingLocation(moments);
@@ -226,9 +256,11 @@ export async function POST(req: NextRequest) {
 			const [userA, userB] = await Promise.all([getUserContact(updated.user_a_id), getUserContact(updated.user_b_id)]);
 			const moments = await getMomentsByIds([updated.moment_a_id, updated.moment_b_id]);
 			const { ideaForA: idealDateForA, ideaForB: idealDateForB } = await getIdealDateIdeaFromProfiles(userA, userB, moments);
+			const safeIdealDateForA = normalizeIdealDateForTemplate(idealDateForA, userA?.likes ?? null, userB?.likes ?? null);
+			const safeIdealDateForB = normalizeIdealDateForTemplate(idealDateForB, userB?.likes ?? null, userA?.likes ?? null);
 
-			const messageForA = buildMatchedTemplate(userB?.phone_number ?? null, userB?.likes ?? null, idealDateForA);
-			const messageForB = buildMatchedTemplate(userA?.phone_number ?? null, userA?.likes ?? null, idealDateForB);
+			const messageForA = buildMatchedTemplate(userB?.phone_number ?? null, userB?.likes ?? null, safeIdealDateForA);
+			const messageForB = buildMatchedTemplate(userA?.phone_number ?? null, userA?.likes ?? null, safeIdealDateForB);
 
 			await Promise.all([notifyUser(userA, messageForA), notifyUser(userB, messageForB)]);
 		}
