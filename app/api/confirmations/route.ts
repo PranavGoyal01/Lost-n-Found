@@ -6,15 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-type UserContact = {
-	id: string;
-	name: string | null;
-	phone_number: string | null;
-	age: number | null;
-	likes: string | null;
-	dislikes: string | null;
-	profile_picture: string | null;
-};
+type UserContact = { id: string; name: string | null; phone_number: string | null; age: number | null; likes: string | null; dislikes: string | null; profile_picture: string | null };
 type MomentContext = { id: string; description: string | null; location: unknown; event_time: string | null };
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
@@ -105,9 +97,7 @@ function buildLocationContext(moments: MomentContext[]): string {
 }
 
 function buildCommonMeetingLocation(moments: MomentContext[]): string {
-	const points = moments
-		.map((moment) => parseLatLngFromLocation(moment.location))
-		.filter((point): point is { lat: number; lng: number } => Boolean(point));
+	const points = moments.map((moment) => parseLatLngFromLocation(moment.location)).filter((point): point is { lat: number; lng: number } => Boolean(point));
 
 	if (points.length === 0) {
 		return "unknown area";
@@ -118,10 +108,7 @@ function buildCommonMeetingLocation(moments: MomentContext[]): string {
 		return `near lat ${p.lat.toFixed(5)}, lng ${p.lng.toFixed(5)}`;
 	}
 
-	const sum = points.reduce(
-		(acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }),
-		{ lat: 0, lng: 0 }
-	);
+	const sum = points.reduce((acc, point) => ({ lat: acc.lat + point.lat, lng: acc.lng + point.lng }), { lat: 0, lng: 0 });
 
 	const avgLat = sum.lat / points.length;
 	const avgLng = sum.lng / points.length;
@@ -167,25 +154,9 @@ async function getIdealDateIdeaFromProfiles(userA: UserContact | null, userB: Us
 	const locationContext = buildLocationContext(moments);
 	const commonMeetingLocation = buildCommonMeetingLocation(moments);
 
-	const [ideaForAFromK2, ideaForBFromK2] = await Promise.all([
-		generateIdealDateFromK2({
-			userAProfile: buildProfileSummary(userA),
-			userBProfile: buildProfileSummary(userB),
-			commonMeetingLocation,
-			locationContext,
-		}),
-		generateIdealDateFromK2({
-			userAProfile: buildProfileSummary(userB),
-			userBProfile: buildProfileSummary(userA),
-			commonMeetingLocation,
-			locationContext,
-		}),
-	]);
+	const [ideaForAFromK2, ideaForBFromK2] = await Promise.all([generateIdealDateFromK2({ userAProfile: buildProfileSummary(userA), userBProfile: buildProfileSummary(userB), commonMeetingLocation, locationContext }), generateIdealDateFromK2({ userAProfile: buildProfileSummary(userB), userBProfile: buildProfileSummary(userA), commonMeetingLocation, locationContext })]);
 
-	return {
-		ideaForA: ideaForAFromK2 || buildIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null),
-		ideaForB: ideaForBFromK2 || buildIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null),
-	};
+	return { ideaForA: ideaForAFromK2 || buildIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null), ideaForB: ideaForBFromK2 || buildIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null) };
 }
 
 function buildMatchedTemplate(theirPhone: string | null, theirLikes: string | null, idealDate: string): string {
