@@ -11,13 +11,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // 2. Securely fetch ONLY this user's matches
+  // 2. Securely fetch ONLY this user's matches AND their profiles
   const { data: matches, error } = await supabase
     .from('matches')
     .select(`
       *,
       moments_a:moment_a_id (description),
-      moments_b:moment_b_id (description)
+      moments_b:moment_b_id (description),
+      users_a:user_a_id (name, phone_number, profile_picture), 
+      users_b:user_b_id (name, phone_number, profile_picture)  
     `)
     .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
     .order('created_at', { ascending: false });
