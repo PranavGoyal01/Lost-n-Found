@@ -2,7 +2,7 @@
 
 # 🔍 Lost&Found
 
-### *You saw someone. We'll find them.*
+### *You had a moment. We'll get it to happily ever after.*
 
 **Reconnecting real human moments in a disconnected world.**
 
