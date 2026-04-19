@@ -1,8 +1,12 @@
+// app/profile/page.tsx
 'use client';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
 import { UserProfile } from '@/app/types';
+
+// 👇 Import the uploader component we just built
+import ProfilePictureUpload from '@/app/components/ProfilePictureUpload';
 
 export default function Profile() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -93,6 +97,19 @@ export default function Profile() {
     <div className="p-8 max-w-md mx-auto text-black">
       <h1 className="text-2xl font-bold mb-4">Your Profile</h1>
       <div className="p-6 border rounded-xl bg-white shadow-md space-y-4">
+        
+        {/* ✨ THE NEW PROFILE PICTURE SECTION ✨ */}
+        <div className="border-b pb-6 mb-4">
+          <ProfilePictureUpload 
+            userId={profile.id} 
+            currentPictureUrl={profile.profile_picture || null} 
+            onUploadSuccess={(newUrl) => {
+              // Update local state instantly so the UI reflects the new image
+              setProfile({ ...profile, profile_picture: newUrl });
+            }}
+          />
+        </div>
+
         {isEditing ? (
           <div className="space-y-4">
             <div>

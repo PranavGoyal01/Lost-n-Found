@@ -36,6 +36,7 @@ export interface UserProfile {
   id: string;
   name: string | null;
   email: string;
+  profile_picture: string | null;
   phone_number: string | null;
   age: number | null;
   likes: string | null;

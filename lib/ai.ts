@@ -1,6 +1,19 @@
-// Abstracted AI logic for Gemma/Daedalus/Gemini
+import { pipeline, type FeatureExtractionPipeline } from '@xenova/transformers';
+
+let extractor: FeatureExtractionPipeline | null = null;
+
 export async function vectorizeString(text: string): Promise<number[]> {
-  // Replace with actual Daedalus/Gemma/Gemini API call
-  // Applies soft pronoun swap here before vectorizing if needed
-  return new Array(768).fill(0.1); 
+  if (!extractor) {
+    extractor = await pipeline(
+      'feature-extraction',
+      'Xenova/all-MiniLM-L6-v2'
+    );
+  }
+
+  const output = await extractor(text, {
+    pooling: 'mean',
+    normalize: true,
+  });
+
+  return Array.from(output.data);
 }
