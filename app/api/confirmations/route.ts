@@ -157,15 +157,7 @@ function normalizeIdealDateForTemplate(idealDate: string, myLikes: string | null
 	if (!compact) return fallback;
 
 	const lower = compact.toLowerCase();
-	const blockedMarkers = [
-		"you are planning one concise first-date idea",
-		"return only one sentence",
-		"person a profile:",
-		"person b profile:",
-		"common meeting location:",
-		"location context from both moments:",
-		"we need to parse the user request",
-	];
+	const blockedMarkers = ["you are planning one concise first-date idea", "return only one sentence", "person a profile:", "person b profile:", "common meeting location:", "location context from both moments:", "we need to parse the user request"];
 
 	if (blockedMarkers.some((marker) => lower.includes(marker))) {
 		return fallback;

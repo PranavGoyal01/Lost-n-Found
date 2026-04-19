@@ -5,14 +5,7 @@ function sanitizeK2DateIdea(content: string): string | null {
 	if (!compact) return null;
 
 	// If the model echoes prompt scaffolding, discard it and let caller fallback.
-	const looksLikePromptEcho = [
-		"you are planning one concise first-date idea",
-		"return only one sentence",
-		"person a profile:",
-		"person b profile:",
-		"common meeting location:",
-		"location context from both moments:",
-	].some((marker) => compact.toLowerCase().includes(marker));
+	const looksLikePromptEcho = ["you are planning one concise first-date idea", "return only one sentence", "person a profile:", "person b profile:", "common meeting location:", "location context from both moments:"].some((marker) => compact.toLowerCase().includes(marker));
 
 	if (looksLikePromptEcho) return null;
 
