@@ -136,9 +136,6 @@ export default function Matches() {
                   <strong>They wrote:</strong> 
                   <p className="mt-1 italic">{m.moments_b?.description}</p>
                 </div>
-                <button className="w-full mt-2 bg-blue-600 text-white p-2 rounded font-semibold hover:bg-blue-700 transition">
-                  Connect via SMS/Photon
-                </button>
               </div>
             </details>
           ))

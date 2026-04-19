@@ -16,8 +16,10 @@ function getPhotonCredentials() {
 	return { projectId: process.env.PHOTON_PROJECT_ID, projectSecret: process.env.PHOTON_API_KEY };
 }
 
-function isEmailTarget(target: string): boolean {
-	return target.includes("@");
+function maskProjectId(projectId: string | undefined): string {
+	if (!projectId) return "unknown";
+	if (projectId.length <= 8) return projectId;
+	return `${projectId.slice(0, 4)}...${projectId.slice(-4)}`;
 }
 
 function normalizePhoneNumber(phone: string): string {
@@ -67,21 +69,12 @@ function getCandidateAddresses(rawPhone: string, normalizedPhone: string): strin
 		candidates.push(localE164, `tel:${localE164}`);
 	}
 
-	return Array.from(new Set(candidates));
-}
-
-function getCandidateTargets(rawTarget: string): string[] {
-	const trimmed = rawTarget.trim();
-	if (!trimmed) return [];
-
-	if (isEmailTarget(trimmed)) {
-		return [trimmed.toLowerCase()];
+	// Try leading-country-code variant without plus, e.g. 18608940138.
+	if (rawDigits.length === 11 && rawDigits.startsWith("1")) {
+		candidates.push(rawDigits, `tel:${rawDigits}`);
 	}
 
-	const normalizedPhone = normalizePhoneNumber(trimmed);
-	if (!normalizedPhone || normalizedPhone === "+") return [];
-
-	return getCandidateAddresses(trimmed, normalizedPhone);
+	return Array.from(new Set(candidates));
 }
 
 async function getSpectrumClient() {
@@ -100,19 +93,20 @@ async function getSpectrumClient() {
 }
 
 export async function sendPhoneNotification(phoneNumber: string, message: string) {
-	await sendPhotonNotification(phoneNumber, message);
-}
+	const normalizedPhone = normalizePhoneNumber(phoneNumber);
+	if (!normalizedPhone || normalizedPhone === "+") {
+		throw new Error("Invalid phone number");
+	}
 
-export async function sendPhotonNotification(target: string, message: string) {
-	const candidateAddresses = getCandidateTargets(target);
+	const candidateAddresses = getCandidateAddresses(phoneNumber, normalizedPhone);
 	if (candidateAddresses.length === 0) {
-		throw new Error("Invalid target address");
+		throw new Error("Invalid phone number");
 	}
 
 	const spectrum = await getSpectrumClient();
 	const iMessage = imessage(spectrum);
 
-	const primaryTarget = candidateAddresses[0] ?? target;
+	const primaryTarget = candidateAddresses[0] ?? normalizedPhone;
 
 	let lastError: unknown;
 	let sawTargetNotAllowed = false;
@@ -134,8 +128,10 @@ export async function sendPhotonNotification(target: string, message: string) {
 	}
 
 	if (sawTargetNotAllowed) {
-		throw new PhotonSendError("target_not_allowed", `Photon project does not allow recipient ${primaryTarget}. Tried: ${candidateAddresses.join(", ")}`);
+		const { projectId } = getPhotonCredentials();
+		const projectHint = maskProjectId(projectId);
+		throw new PhotonSendError("target_not_allowed", `Photon project (${projectHint}) does not allow recipient ${primaryTarget}. Tried: ${candidateAddresses.join(", ")}`);
 	}
 
-	throw new PhotonSendError("send_failed", `Photon send failed for ${primaryTarget}: ${String(lastError)}`);
+	throw new PhotonSendError("send_failed", `Photon send failed for ${normalizedPhone}: ${String(lastError)}`);
 }
