@@ -186,7 +186,7 @@ export default function AuthPage() {
 
       {/* Footer */}
       <footer className="flex items-center justify-between px-8 py-5 border-t border-gray-100">
-        <span className="text-[12px] text-gray-400">© 2025 Lost&amp;Found</span>
+        <span className="text-[12px] text-gray-400">© 2026 Lost&amp;Found</span>
         <div className="flex gap-5">
           {['Privacy', 'Terms'].map((link) => (
             <Link

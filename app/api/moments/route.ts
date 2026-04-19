@@ -13,6 +13,23 @@ export async function POST(req: NextRequest) {
   if (!user)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // 🛡️ NEW: Check if the user has a profile picture
+  const { data: profile, error: profileError } = await supabase
+    .from("users")
+    .select("profile_picture")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile?.profile_picture) {
+    return NextResponse.json(
+      {
+        error: "Profile picture required",
+        code: "MISSING_PROFILE_PICTURE",
+      },
+      { status: 403 }, // 403 Forbidden is appropriate here
+    );
+  }
+
   const { description, date, time, latitude, longitude } = await req.json();
   const event_time = `${date}T${time}:00Z`;
 
@@ -30,7 +47,7 @@ export async function POST(req: NextRequest) {
     ? `SRID=4326;POINT(${Number(longitude)} ${Number(latitude)})`
     : null;
 
-	const embedding = await vectorizeString(description);
+  const embedding = await vectorizeString(description);
 
   // 1. Fetch matches (Bump count to 15 to account for the ones we filter out)
   // 1. Fetch matches (Now passing current_user_id!)
@@ -49,8 +66,11 @@ export async function POST(req: NextRequest) {
     console.error("CRITICAL RPC ERROR:", rpcError);
   }
 
-	// 2. Fetch moments this user has already confirmed/acted upon
-	const { data: pastConfirmations } = await supabase.from("confirmations").select("moment_a_id, moment_b_id").or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`);
+  // 2. Fetch moments this user has already confirmed/acted upon
+  const { data: pastConfirmations } = await supabase
+    .from("confirmations")
+    .select("moment_a_id, moment_b_id")
+    .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`);
 
   // Create a quick lookup Set of those IDs
   const actedMomentIds = new Set<string>();
@@ -68,29 +88,45 @@ export async function POST(req: NextRequest) {
       })
     : [];
 
-	const { data: newMoment } = await supabase
-		.from("moments")
-		.insert([{ user_id: user.id, event_time, description, description_embedding: embedding, location }])
-		.select()
-		.single();
+  const { data: newMoment } = await supabase
+    .from("moments")
+    .insert([
+      {
+        user_id: user.id,
+        event_time,
+        description,
+        description_embedding: embedding,
+        location,
+      },
+    ])
+    .select()
+    .single();
 
-	// Return the fully filtered list
-	if (freshMatches.length > 0) {
-		return NextResponse.json({ status: "similar_found", matches: freshMatches, moment: newMoment });
-	}
+  // Return the fully filtered list
+  if (freshMatches.length > 0) {
+    return NextResponse.json({
+      status: "similar_found",
+      matches: freshMatches,
+      moment: newMoment,
+    });
+  }
 
-	return NextResponse.json({ status: "saved", moment: newMoment });
+  return NextResponse.json({ status: "saved", moment: newMoment });
 }
 
 // ... GET route stays exactly the same
 
 export async function GET(req: NextRequest) {
-	const token = req.headers.get("Authorization")?.replace("Bearer ", "");
-	const {
-		data: { user },
-	} = await supabase.auth.getUser(token);
-	if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const token = req.headers.get("Authorization")?.replace("Bearer ", "");
+  const {
+    data: { user },
+  } = await supabase.auth.getUser(token);
+  if (!user)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-	const { data: moments } = await supabase.from("moments").select("*").eq("user_id", user.id);
-	return NextResponse.json(moments);
+  const { data: moments } = await supabase
+    .from("moments")
+    .select("*")
+    .eq("user_id", user.id);
+  return NextResponse.json(moments);
 }

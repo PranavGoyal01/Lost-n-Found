@@ -174,7 +174,7 @@ export default function Landing() {
           className="text-[12px] text-gray-400"
           style={{ fontFamily: 'system-ui, sans-serif' }}
         >
-          © 2025 Lost&amp;Found
+          © 2026 Lost&amp;Found
         </span>
         <div className="flex gap-5">
           {['Privacy', 'Terms', 'Contact'].map((link) => (

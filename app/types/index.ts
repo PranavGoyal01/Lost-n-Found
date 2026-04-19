@@ -8,10 +8,9 @@ export interface User {
   dislikes: string;
 }
 
-// PostGIS Point format usually comes back as an object or geoJSON string
 export interface GeoPoint {
   type: "Point";
-  coordinates: [number, number]; // [lng, lat]
+  coordinates: [number, number];
 }
 
 export interface Moment {
@@ -19,8 +18,15 @@ export interface Moment {
   user_id: string;
   event_time: string;
   description: string;
-  location: GeoPoint | null; // Typed instead of any
-  status?: string; 
+  location: GeoPoint | null;
+  status?: string;
+}
+
+export interface MomentWithUser extends Moment {
+  users: {
+    name: string | null;
+    profile_picture: string | null;
+  } | null;
 }
 
 export interface Match {
@@ -49,6 +55,6 @@ export interface MatchRecord {
   created_at: string;
   moments_a: { description: string };
   moments_b: { description: string };
-  users_a: { name: string; phone_number: string };
-  users_b: { name: string; phone_number: string };
+  users_a: { name: string; phone_number: string; profile_picture: string | null };
+  users_b: { name: string; phone_number: string; profile_picture: string | null };
 }

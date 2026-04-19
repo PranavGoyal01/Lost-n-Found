@@ -1,10 +1,11 @@
 "use client";
-import { Moment } from "@/app/types";
+import { MomentWithUser } from "@/app/types";
 import { supabase } from "@/lib/supabase";
 import "leaflet/dist/leaflet.css";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Avatar from "@/app/components/Avatar";
 
 type Coordinates = { lat: number; lng: number };
 type GeocodeResult = { lat: string; lon: string; display_name: string };
@@ -95,7 +96,7 @@ export default function NewMoment() {
   const [locationLookupLoading, setLocationLookupLoading] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [potentials, setPotentials] = useState<Moment[]>([]);
+  const [potentials, setPotentials] = useState<MomentWithUser[]>([]);
   const [currentMomentId, setCurrentMomentId] = useState<string | null>(null);
 
   const findLocation = async () => {
@@ -175,8 +176,12 @@ export default function NewMoment() {
 
             <div className="flex flex-col gap-3">
               {potentials.map((p, idx) => (
-                <div key={idx} className="border border-gray-200 rounded-lg p-5 bg-white">
-                  <p className="text-[14px] text-gray-700 leading-relaxed mb-5 italic">&ldquo;{p.description}&rdquo;</p>
+                <div key={idx} className="border border-gray-200 rounded-lg p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <Avatar src={p.users?.profile_picture} name={p.users?.name} size={40} />
+                    <p className="text-[14px] font-medium text-gray-900">{p.users?.name ?? 'Someone'}</p>
+                  </div>
+                  <p className="text-[14px] text-gray-700 leading-relaxed italic mb-5">&ldquo;{p.description}&rdquo;</p>
                   <button
                     onClick={() => confirmMatch(p.id)}
                     className="w-full bg-gray-900 text-white text-[13px] font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors"
@@ -220,29 +225,17 @@ export default function NewMoment() {
             </h1>
           </div>
 
-          {/* Date + Time */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelClass}>Date</label>
-              <input
-                type="date"
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                className={inputClass}
-                required
-              />
+              <input type="date" onChange={(e) => setForm({ ...form, date: e.target.value })} className={inputClass} required />
             </div>
             <div>
               <label className={labelClass}>Time</label>
-              <input
-                type="time"
-                onChange={(e) => setForm({ ...form, time: e.target.value })}
-                className={inputClass}
-                required
-              />
+              <input type="time" onChange={(e) => setForm({ ...form, time: e.target.value })} className={inputClass} required />
             </div>
           </div>
 
-          {/* Location search */}
           <div>
             <label className={labelClass}>Location</label>
             <div className="flex gap-2">
@@ -267,7 +260,6 @@ export default function NewMoment() {
             {locationLabel && <p className="text-[12px] text-gray-400 mt-2 leading-relaxed">{locationLabel}</p>}
           </div>
 
-          {/* Map */}
           <div>
             <label className={labelClass}>Pin the exact spot</label>
             <LocationPickerMap center={mapCenter} selectedPoint={selectedPoint} onChange={setSelectedPoint} />
@@ -278,7 +270,6 @@ export default function NewMoment() {
             )}
           </div>
 
-          {/* Description */}
           <div>
             <label className={labelClass}>Describe the moment</label>
             <textarea
