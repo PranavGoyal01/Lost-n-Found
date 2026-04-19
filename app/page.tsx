@@ -29,7 +29,7 @@ export default function Landing() {
         </p>
         <h1 className="text-[44px] font-normal leading-[1.1] tracking-tight max-w-[480px] mx-auto mb-5 text-gray-900">
           You saw someone.{' '}
-          <span className="text-gray-400">We'll help you find them.</span>
+          <span className="text-gray-400">We will help you find them.</span>
         </h1>
         <p
           className="text-[17px] text-gray-500 leading-relaxed max-w-[380px] mx-auto mb-10"
