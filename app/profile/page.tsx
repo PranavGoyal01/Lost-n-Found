@@ -28,7 +28,16 @@ export default function Profile() {
 				router.push("/auth");
 				return;
 			}
-			const res = await fetch(`/api/users?id=${session.user.id}`);
+
+			let res = await fetch(`/api/users?id=${session.user.id}`);
+			if (!res.ok) {
+				// Self-heal: create a minimal row if it does not exist yet.
+				const bootstrapRes = await fetch("/api/users", { method: "PUT", headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` }, body: JSON.stringify({ name: session.user.user_metadata?.name || "" }) });
+				if (bootstrapRes.ok) {
+					res = await fetch(`/api/users?id=${session.user.id}`);
+				}
+			}
+
 			if (!res.ok) throw new Error("Failed to fetch profile");
 			const data: UserProfile = await res.json();
 			setProfile(data);
@@ -85,8 +94,16 @@ export default function Profile() {
 
 	if (!profile) {
 		return (
-			<div className='min-h-screen bg-white flex items-center justify-center' style={{ fontFamily: "system-ui, sans-serif" }}>
-				<p className='text-[14px] text-gray-400'>Profile not found.</p>
+			<div className='min-h-screen bg-white flex flex-col items-center justify-center px-6' style={{ fontFamily: "system-ui, sans-serif" }}>
+				<p className='text-[14px] text-gray-400 mb-4'>Profile not found.</p>
+				<div className='flex gap-3'>
+					<Link href='/home' className='text-[13px] text-gray-600 underline underline-offset-2'>
+						Back home
+					</Link>
+					<button onClick={handleSignOut} className='text-[13px] text-gray-500 underline underline-offset-2'>
+						Sign out
+					</button>
+				</div>
 			</div>
 		);
 	}

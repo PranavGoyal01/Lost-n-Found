@@ -2,7 +2,7 @@
 
 # 🔍 Lost&Found
 
-### *You had a moment. We'll get it to happily ever after.*
+### _You had a moment. We'll get it to happily ever after._
 
 **Reconnecting real human moments in a disconnected world.**
 
@@ -19,7 +19,7 @@
 
 Every day, you lock eyes with someone on the subway. You smile at a stranger at the coffee shop. You feel something — and then they're gone.
 
-> *1 in 2 U.S. adults report measurable levels of loneliness.*
+> _1 in 2 U.S. adults report measurable levels of loneliness._
 > The U.S. Surgeon General has declared loneliness as dangerous as smoking 15 cigarettes a day.
 
 **The connections are happening. We're just losing them.**
@@ -32,12 +32,12 @@ Lost&Found is an **anonymous missed connections app** that uses AI to reunite pe
 
 Unlike dating apps where you swipe on strangers, Lost&Found is for people you've **already seen** and **already felt something about**. The spark happened. We just help you find each other again.
 
-| Random Dating Apps | Lost&Found |
-|---|---|
-| Swipe on strangers | Reconnect someone you already saw |
-| Algorithm picks for you | The spark already happened |
-| No real-world context | Real moments, real places |
-| Dopamine-driven scrolling | Intent-driven, not scroll-driven |
+| Random Dating Apps        | Lost&Found                        |
+| ------------------------- | --------------------------------- |
+| Swipe on strangers        | Reconnect someone you already saw |
+| Algorithm picks for you   | The spark already happened        |
+| No real-world context     | Real moments, real places         |
+| Dopamine-driven scrolling | Intent-driven, not scroll-driven  |
 
 ---
 
@@ -55,19 +55,23 @@ Unlike dating apps where you swipe on strangers, Lost&Found is for people you've
 ## 🛠️ Tech Stack
 
 ### Frontend
+
 - **Next.js** — React framework for the web app
 
 ### Backend & Database
+
 - **Supabase** — PostgreSQL database + auth + edge functions
 - **pg_vector** — Vector similarity search for moment matching
 
 ### AI & Matching
+
 - **Xenova Transformers (all-MiniLM-L6-v2)** — Local vectorization + semantic matching of moment descriptions
 - **K2 Think** — Generates personalized date ideas on match
 - **Pronoun swapping** — Matches descriptions written from opposite perspectives (she→he, etc.)
 - **Cosine similarity** — Threshold of 0.7 for confident matches
 
 ### Communication
+
 - **Photon** — Creates a group text chat between matched users
 - **OTP Phone Verification** — One account per phone number
 
@@ -95,12 +99,12 @@ Photon creates group chat + K2 generates date idea
 
 ## 🔒 Built With Safety First
 
-| Feature | Why it matters |
-|---|---|
-| 📱 **Phone verification** | One account per number. No duplicates, no fake profiles. |
-| ✅ **Mutual confirmation** | Both people confirm before any personal info is shared. |
-| 🗓️ **30-day auto-expiry** | All posts auto-delete after 30 days. Clean and safe. |
-| 🚫 **No browsing** | You can't scroll through people. You only see matches to your own moment. |
+| Feature                    | Why it matters                                                            |
+| -------------------------- | ------------------------------------------------------------------------- |
+| 📱 **Phone verification**  | One account per number. No duplicates, no fake profiles.                  |
+| ✅ **Mutual confirmation** | Both people confirm before any personal info is shared.                   |
+| 🗓️ **30-day auto-expiry**  | All posts auto-delete after 30 days. Clean and safe.                      |
+| 🚫 **No browsing**         | You can't scroll through people. You only see matches to your own moment. |
 
 ---
 
@@ -130,16 +134,16 @@ Matches { id, user_a_id, user_b_id, moment_a_id, moment_b_id, chat_id }
 
 ## 📡 API Routes
 
-| Method | Route | Description |
-|--------|-------|-------------|
-| `POST` | `/moments` | Submit a new missed connection moment |
-| `GET` | `/moments` | Get all moments by current user |
-| `DELETE` | `/moments` | Delete a moment by ID |
-| `POST` | `/confirmations` | Confirm or initiate a match |
-| `GET` | `/matches` | Get all matches for current user |
-| `GET` | `/users/me` | Get current user profile |
-| `PUT` | `/users/me` | Update current user profile |
-| `CRON` | `/moments/cleanup` | Daily cleanup of expired moments (30 days) |
+| Method   | Route              | Description                                |
+| -------- | ------------------ | ------------------------------------------ |
+| `POST`   | `/moments`         | Submit a new missed connection moment      |
+| `GET`    | `/moments`         | Get all moments by current user            |
+| `DELETE` | `/moments`         | Delete a moment by ID                      |
+| `POST`   | `/confirmations`   | Confirm or initiate a match                |
+| `GET`    | `/matches`         | Get all matches for current user           |
+| `GET`    | `/users/me`        | Get current user profile                   |
+| `PUT`    | `/users/me`        | Update current user profile                |
+| `CRON`   | `/moments/cleanup` | Daily cleanup of expired moments (30 days) |
 
 ---
 
@@ -165,18 +169,62 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 ---
 
+## Demo Seed And Reset
+
+Use these commands to create a repeatable 3-user demo state:
+
+```bash
+# Creates/updates 3 demo users, clears prior demo rows,
+# then inserts 2 pre-existing moments (one for each of first 2 users)
+npm run demo:seed
+
+# Clears demo moments/confirmations/matches while keeping demo users
+npm run demo:reset
+```
+
+Demo accounts created by `demo:seed`:
+
+- `demo.alex@lostfound.dev` / `DemoPass123!`
+- `demo.sam@lostfound.dev` / `DemoPass123!`
+- `demo.jordan@lostfound.dev` / `DemoPass123!`
+
+Required env vars for seed/reset:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+
+The script file is at `scripts/demo-data.mjs`.
+
+### Suggested Demo Flow
+
+1. Run `npm run demo:seed`.
+2. Log in as `demo.jordan@lostfound.dev` and create a new moment using your prepared text.
+3. Show that similar matches are returned (from Alex and Sam moments).
+4. Pick one match and confirm.
+5. Show that the selected person receives the request message and can accept.
+6. Confirm mutual acceptance creates the final matched state and final text.
+
+### Pre-demo Checklist
+
+- Ensure the `profile-pictures` bucket exists and upload policies are applied.
+- Ensure demo users have valid phone numbers in `users.phone_number`.
+- Ensure Photon project is configured to allow those targets.
+- Optional: set `K2_THINK_V2_API_KEY` for AI-generated date ideas (fallback still works if unset).
+
+---
+
 ## 🌐 Pages
 
-| Route | Description |
-|-------|-------------|
-| `/` | Landing page |
-| `/auth` | Sign in / Sign up |
-| `/onboarding` | Profile setup |
-| `/home` | Home screen |
-| `/moments/new` | Submit a new moment |
-| `/moments` | View your moments |
-| `/matches` | View confirmations & matches |
-| `/profile` | Your profile |
+| Route          | Description                  |
+| -------------- | ---------------------------- |
+| `/`            | Landing page                 |
+| `/auth`        | Sign in / Sign up            |
+| `/onboarding`  | Profile setup                |
+| `/home`        | Home screen                  |
+| `/moments/new` | Submit a new moment          |
+| `/moments`     | View your moments            |
+| `/matches`     | View confirmations & matches |
+| `/profile`     | Your profile                 |
 
 ---
 
@@ -184,8 +232,8 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 <div align="center">
 
-| Senjuti | Logan | Pranav | Nitya |
-|---|---|---|---|
+| Senjuti             | Logan            | Pranav                          | Nitya              |
+| ------------------- | ---------------- | ------------------------------- | ------------------ |
 | Stockton University | Tufts University | Stevens Institute of Technology | Rutgers University |
 
 </div>
@@ -194,9 +242,9 @@ Open [http://localhost:3000](http://localhost:3000) to see the app.
 
 <div align="center">
 
-*"We're not building another dating app.*
-*We're turning missed connections into real ones.*
-*Because no one should wonder 'what if' forever."*
+_"We're not building another dating app._
+_We're turning missed connections into real ones._
+_Because no one should wonder 'what if' forever."_
 
 **HackPrinceton Spring 2026**
 
