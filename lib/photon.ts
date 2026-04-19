@@ -3,8 +3,21 @@ import { imessage } from "spectrum-ts/providers/imessage";
 
 let spectrumInstance: Awaited<ReturnType<typeof Spectrum>> | null = null;
 
+export class PhotonSendError extends Error {
+	readonly reason: "target_not_allowed" | "send_failed";
+
+	constructor(reason: "target_not_allowed" | "send_failed", message: string) {
+		super(message);
+		this.reason = reason;
+	}
+}
+
 function getPhotonCredentials() {
 	return { projectId: process.env.PHOTON_PROJECT_ID, projectSecret: process.env.PHOTON_API_KEY };
+}
+
+function isEmailTarget(target: string): boolean {
+	return target.includes("@");
 }
 
 function normalizePhoneNumber(phone: string): string {
@@ -13,7 +26,62 @@ function normalizePhoneNumber(phone: string): string {
 		return `+${trimmed.slice(1).replace(/\D/g, "")}`;
 	}
 
-	return `+${trimmed.replace(/\D/g, "")}`;
+	const digits = trimmed.replace(/\D/g, "");
+	if (!digits) return "+";
+
+	// Common case for this app: US/Canada local input like 8608940138.
+	if (digits.length === 10) {
+		return `+1${digits}`;
+	}
+
+	// NANP with explicit country code but no plus.
+	if (digits.length === 11 && digits.startsWith("1")) {
+		return `+${digits}`;
+	}
+
+	// International prefix 00XXXXXXXX -> +XXXXXXXX
+	if (digits.startsWith("00") && digits.length > 2) {
+		return `+${digits.slice(2)}`;
+	}
+
+	return `+${digits}`;
+}
+
+function isTargetNotAllowedError(error: unknown): boolean {
+	if (!(error instanceof Error)) return false;
+
+	const message = error.message.toLowerCase();
+	const maybeCause = (error as Error & { cause?: { details?: string } }).cause;
+	const causeDetails = maybeCause?.details?.toLowerCase() ?? "";
+
+	return message.includes("target not allowed") || causeDetails.includes("target not allowed");
+}
+
+function getCandidateAddresses(rawPhone: string, normalizedPhone: string): string[] {
+	const rawDigits = rawPhone.replace(/\D/g, "");
+	const candidates = [normalizedPhone, `tel:${normalizedPhone}`];
+
+	// Try non-country-code variant when users type a 10-digit local number.
+	if (rawDigits.length === 10) {
+		const localE164 = `+${rawDigits}`;
+		candidates.push(localE164, `tel:${localE164}`);
+	}
+
+	return Array.from(new Set(candidates));
+}
+
+function getCandidateTargets(rawTarget: string): string[] {
+	const trimmed = rawTarget.trim();
+	if (!trimmed) return [];
+
+	if (isEmailTarget(trimmed)) {
+		return [trimmed.toLowerCase()];
+	}
+
+	const normalizedPhone = normalizePhoneNumber(trimmed);
+	if (!normalizedPhone || normalizedPhone === "+") return [];
+
+	return getCandidateAddresses(trimmed, normalizedPhone);
 }
 
 async function getSpectrumClient() {
@@ -32,15 +100,42 @@ async function getSpectrumClient() {
 }
 
 export async function sendPhoneNotification(phoneNumber: string, message: string) {
-	const normalizedPhone = normalizePhoneNumber(phoneNumber);
-	if (!normalizedPhone || normalizedPhone === "+") {
-		throw new Error("Invalid phone number");
+	await sendPhotonNotification(phoneNumber, message);
+}
+
+export async function sendPhotonNotification(target: string, message: string) {
+	const candidateAddresses = getCandidateTargets(target);
+	if (candidateAddresses.length === 0) {
+		throw new Error("Invalid target address");
 	}
 
 	const spectrum = await getSpectrumClient();
 	const iMessage = imessage(spectrum);
 
-	const recipient = await iMessage.user(normalizedPhone);
-	const space = await iMessage.space([recipient]);
-	await space.send(text(message));
+	const primaryTarget = candidateAddresses[0] ?? target;
+
+	let lastError: unknown;
+	let sawTargetNotAllowed = false;
+
+	for (const address of candidateAddresses) {
+		try {
+			const recipient = await iMessage.user(address);
+			const space = await iMessage.space([recipient]);
+			await space.send(text(message));
+			return;
+		} catch (error) {
+			lastError = error;
+			if (isTargetNotAllowedError(error)) {
+				sawTargetNotAllowed = true;
+				continue;
+			}
+			throw new PhotonSendError("send_failed", `Photon send failed for ${primaryTarget}`);
+		}
+	}
+
+	if (sawTargetNotAllowed) {
+		throw new PhotonSendError("target_not_allowed", `Photon project does not allow recipient ${primaryTarget}. Tried: ${candidateAddresses.join(", ")}`);
+	}
+
+	throw new PhotonSendError("send_failed", `Photon send failed for ${primaryTarget}: ${String(lastError)}`);
 }
