@@ -45,7 +45,7 @@ Unlike dating apps where you swipe on strangers, Lost&Found is for people you've
 
 ```
 1. 📝 Describe the moment   →   Where, when, what happened, what they wore
-2. 🤖 AI searches quietly   →   Gemini vectorizes & finds matching moments
+2. 🤖 AI searches quietly   →   Xenova Transformers vectorizes & finds matching moments
 3. ✅ Both confirm          →   Mutual confirmation before any info is shared
 4. 💬 Group chat created    →   Photon connects you. The rest is up to you.
 ```
@@ -62,7 +62,7 @@ Unlike dating apps where you swipe on strangers, Lost&Found is for people you've
 - **pg_vector** — Vector similarity search for moment matching
 
 ### AI & Matching
-- **Gemini API** — Vectorization + semantic matching of moment descriptions
+- **Xenova Transformers (all-MiniLM-L6-v2)** — Local vectorization + semantic matching of moment descriptions
 - **K2 Think** — Generates personalized date ideas on match
 - **Pronoun swapping** — Matches descriptions written from opposite perspectives (she→he, etc.)
 - **Cosine similarity** — Threshold of 0.7 for confident matches
@@ -78,7 +78,7 @@ Unlike dating apps where you swipe on strangers, Lost&Found is for people you've
 ```
 User posts moment
        ↓
-Gemini vectorizes description
+Xenova Transformers vectorizes description
        ↓
 Pronoun-swap (she↔he) + cosine similarity search
        ↓
