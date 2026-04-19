@@ -1,7 +1,7 @@
-'use client';
-import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
-import { MatchRecord } from '@/app/types';
+"use client";
+import { MatchRecord } from "@/app/types";
+import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
 import Link from 'next/link';
 import Avatar from '@/app/components/Avatar';
 
@@ -15,8 +15,6 @@ type PendingRecord = {
   user_b_id: string;
   moments_a?: { description: string };
   moments_b?: { description: string };
-  users_a?: { name: string | null; profile_picture: string | null };
-  users_b?: { name: string | null; profile_picture: string | null };
 };
 
 export default function Matches() {
@@ -31,12 +29,18 @@ export default function Matches() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       setCurrentUserId(session.user.id);
-      try {
-        const res = await fetch('/api/matches', {
-          headers: { Authorization: `Bearer ${session.access_token}` },
-        });
-        if (res.ok) setMatches(await res.json());
 
+      try {
+        // 1. Fetch fully confirmed matches
+        const res = await fetch('/api/matches', {
+          headers: { 'Authorization': `Bearer ${session.access_token}` }
+        });
+        if (res.ok) {
+          const data: MatchRecord[] = await res.json();
+          setMatches(data);
+        }
+
+        // 2. Fetch pending confirmations
         const { data: pendingData } = await supabase
           .from('confirmations')
           .select(`
@@ -49,10 +53,12 @@ export default function Matches() {
           .or(`user_a_id.eq.${session.user.id},user_b_id.eq.${session.user.id}`);
 
         if (pendingData) {
-          setPending(pendingData.filter((p) => !(p.user_a_confirmed && p.user_b_confirmed)));
+          // Filter out ones that are already fully matched (both confirmed)
+          const onlyPending = pendingData.filter(p => !(p.user_a_confirmed && p.user_b_confirmed));
+          setPending(onlyPending);
         }
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error("Failed to fetch data:", error);
       } finally {
         setLoading(false);
       }
@@ -73,6 +79,7 @@ export default function Matches() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col" style={{ fontFamily: 'system-ui, sans-serif' }}>
+      {/* Nav */}
       <nav className="flex items-center justify-between px-8 py-5 border-b border-gray-100">
         <span className="text-[15px] font-medium tracking-tight text-gray-900">Lost&amp;Found</span>
         <Link href="/home" className="text-[13px] text-gray-400 hover:text-gray-700 transition-colors">Home</Link>
@@ -81,6 +88,7 @@ export default function Matches() {
       <main className="flex-1 flex flex-col items-center px-6 py-14">
         <div className="w-full max-w-sm">
 
+          {/* Header */}
           <div className="text-center mb-10">
             <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">Connections</p>
             <h1
@@ -95,12 +103,9 @@ export default function Matches() {
             <div className="flex flex-col gap-3">
               {[1, 2].map((i) => (
                 <div key={i} className="border border-gray-100 rounded-lg p-5 animate-pulse">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-gray-100" />
-                    <div className="h-3 bg-gray-100 rounded w-1/3" />
-                  </div>
+                  <div className="h-2.5 bg-gray-100 rounded w-1/4 mb-3" />
                   <div className="h-3 bg-gray-100 rounded w-full mb-2" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                  <div className="h-3 bg-gray-100 rounded w-3/4" />
                 </div>
               ))}
             </div>
@@ -109,7 +114,9 @@ export default function Matches() {
               {/* Pending */}
               {pending.length > 0 && (
                 <div className="mb-8">
-                  <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">Pending</p>
+                  <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">
+                    Pending
+                  </p>
                   <div className="flex flex-col gap-3">
                     {pending.map((p) => {
                       const isUserA = p.user_a_id === currentUserId;
@@ -117,19 +124,12 @@ export default function Matches() {
                       const myPostId = isUserA ? p.moment_a_id : p.moment_b_id;
                       const theirPostId = isUserA ? p.moment_b_id : p.moment_a_id;
                       const theirDescription = isUserA ? p.moments_b?.description : p.moments_a?.description;
-                      const theirUser = isUserA ? p.users_b : p.users_a;
 
                       return (
                         <div key={p.id} className="border border-gray-200 rounded-lg p-5">
-                          <div className="flex items-center gap-3 mb-4">
-                            <Avatar src={theirUser?.profile_picture} name={theirUser?.name} size={40} />
-                            <div>
-                              <p className="text-[14px] font-medium text-gray-900">{theirUser?.name ?? 'Someone'}</p>
-                              <p className="text-[11px] text-gray-400">
-                                {waitingOnThem ? 'Awaiting their response' : 'Thinks it\'s you'}
-                              </p>
-                            </div>
-                          </div>
+                          <p className="text-[11px] font-medium tracking-wide uppercase mb-3 text-gray-400">
+                            {waitingOnThem ? 'Awaiting their response' : 'They think it\'s you'}
+                          </p>
                           <p className="text-[14px] text-gray-600 leading-relaxed italic mb-4">
                             &ldquo;{theirDescription}&rdquo;
                           </p>
@@ -149,10 +149,12 @@ export default function Matches() {
                 </div>
               )}
 
-              {/* Confirmed */}
+              {/* Confirmed matches */}
               <div>
                 {pending.length > 0 && (
-                  <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">Confirmed</p>
+                  <p className="text-[11px] font-medium tracking-[0.1em] uppercase text-gray-400 mb-4">
+                    Confirmed
+                  </p>
                 )}
                 {matches.length === 0 && pending.length === 0 ? (
                   <div className="text-center py-16">
@@ -163,33 +165,30 @@ export default function Matches() {
                   <p className="text-[14px] text-gray-400">No confirmed matches yet.</p>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {matches.map((m) => {
-                      const theirUser = m.users_b;
-                      return (
-                        <div key={m.id} className="border border-gray-200 rounded-lg p-5">
-                          <div className="flex items-center gap-3 mb-4">
-                            <Avatar src={theirUser?.profile_picture} name={theirUser?.name} size={40} />
-                            <div>
-                              <p className="text-[14px] font-medium text-gray-900">{theirUser?.name ?? 'Someone'}</p>
-                              <p className="text-[11px] text-gray-400">Confirmed match</p>
-                            </div>
+                    {matches.map((m) => (
+                      <div key={m.id} className="border border-gray-200 rounded-lg p-5">
+                        <p className="text-[11px] font-medium tracking-wide uppercase text-gray-400 mb-4">
+                          Matched
+                        </p>
+                        <div className="flex flex-col gap-3 mb-5">
+                          <div>
+                            <p className="text-[11px] text-gray-400 mb-1">You wrote</p>
+                            <p className="text-[14px] text-gray-700 leading-relaxed italic">
+                              &ldquo;{m.moments_a?.description}&rdquo;
+                            </p>
                           </div>
-                          <div className="flex flex-col gap-3 mb-5">
-                            <div>
-                              <p className="text-[11px] text-gray-400 mb-1">You wrote</p>
-                              <p className="text-[14px] text-gray-700 leading-relaxed italic">&ldquo;{m.moments_a?.description}&rdquo;</p>
-                            </div>
-                            <div className="border-t border-gray-100 pt-3">
-                              <p className="text-[11px] text-gray-400 mb-1">They wrote</p>
-                              <p className="text-[14px] text-gray-700 leading-relaxed italic">&ldquo;{m.moments_b?.description}&rdquo;</p>
-                            </div>
+                          <div className="border-t border-gray-100 pt-3">
+                            <p className="text-[11px] text-gray-400 mb-1">They wrote</p>
+                            <p className="text-[14px] text-gray-700 leading-relaxed italic">
+                              &ldquo;{m.moments_b?.description}&rdquo;
+                            </p>
                           </div>
-                          {/* <button className="w-full bg-gray-900 text-white text-[13px] font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors">
-                            Connect
-                          </button> */}
                         </div>
-                      );
-                    })}
+                        {/* <button className="w-full bg-gray-900 text-white text-[13px] font-medium py-2.5 rounded-lg hover:bg-gray-700 transition-colors">
+                          Connect
+                        </button> */}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

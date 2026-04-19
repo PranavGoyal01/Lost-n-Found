@@ -1,43 +1,34 @@
 // app/api/confirmations/route.ts
 
-import { PhotonSendError, sendPhotonNotification } from "@/lib/photon";
+import { PhotonSendError, sendPhoneNotification } from "@/lib/photon";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
-type UserContact = { id: string; name: string | null; phone_number: string | null; email: string | null };
+type UserContact = { id: string; name: string | null; phone_number: string | null };
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
-	const { data } = await supabase.from("users").select("id, name, phone_number, email").eq("id", userId).single();
+	const { data } = await supabase.from("users").select("id, name, phone_number").eq("id", userId).single();
 
 	return data;
 }
 
 async function notifyUser(contact: UserContact | null, message: string) {
 	if (!contact) return;
-
-	const targets = [contact.phone_number, contact.email].filter((value): value is string => Boolean(value && value.trim()));
-	if (targets.length === 0) return;
-
-	let lastAllowedError: PhotonSendError | null = null;
-
-	for (const target of targets) {
-		try {
-			await sendPhotonNotification(target, message);
-			return;
-		} catch (error) {
-			if (error instanceof PhotonSendError && error.reason === "target_not_allowed") {
-				lastAllowedError = error;
-				continue;
-			}
-
-			console.error("Photon notification failed:", error);
-			return;
-		}
+	if (!contact.phone_number?.trim()) {
+		console.warn(`Notification skipped for user ${contact.id}: missing phone_number in users table.`);
+		return;
 	}
 
-	if (lastAllowedError) {
-		console.warn(`Photon target not allowed for user ${contact.id}. ${lastAllowedError.message}`);
+	try {
+		await sendPhoneNotification(contact.phone_number, message);
+	} catch (error) {
+		if (error instanceof PhotonSendError && error.reason === "target_not_allowed") {
+			console.warn(`Photon phone target not allowed for user ${contact.id}. ${error.message}`);
+			return;
+		}
+
+		console.error("Photon notification failed:", error);
 	}
 }
 
