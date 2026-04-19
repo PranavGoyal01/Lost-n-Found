@@ -35,38 +35,19 @@ function LocationPickerMap({ center, selectedPoint, onChange }: { center: Coordi
 				return;
 			}
 
-			const markerIcon = L.divIcon({
-				html: `<span class="moment-pin-core"></span><span class="moment-pin-pulse"></span>`,
-				className: "moment-pin-wrapper",
-				iconSize: [26, 26],
-				iconAnchor: [13, 13],
-			});
+			const markerIcon = L.divIcon({ html: `<span class="moment-pin-core"></span><span class="moment-pin-pulse"></span>`, className: "moment-pin-wrapper", iconSize: [26, 26], iconAnchor: [13, 13] });
 
 			const initialCenter = initialCenterRef.current;
 			const initialSelectedPoint = initialSelectedPointRef.current;
 
-			const map = L.map(mapHostRef.current, {
-				zoomControl: false,
-				attributionControl: false,
-			}).setView([initialCenter.lat, initialCenter.lng], 14);
+			const map = L.map(mapHostRef.current, { zoomControl: false, attributionControl: false }).setView([initialCenter.lat, initialCenter.lng], 14);
 
-			L.control
-				.zoom({
-					position: "bottomright",
-				})
-				.addTo(map);
+			L.control.zoom({ position: "bottomright" }).addTo(map);
 
-			L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-				attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
-				subdomains: "abcd",
-				maxZoom: 20,
-			}).addTo(map);
+			L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", { attribution: "&copy; OpenStreetMap contributors &copy; CARTO", subdomains: "abcd", maxZoom: 20 }).addTo(map);
 
 			const initialPoint = initialSelectedPoint ?? initialCenter;
-			const marker = L.marker([initialPoint.lat, initialPoint.lng], {
-				draggable: true,
-				icon: markerIcon,
-			}).addTo(map);
+			const marker = L.marker([initialPoint.lat, initialPoint.lng], { draggable: true, icon: markerIcon }).addTo(map);
 
 			marker.on("dragend", () => {
 				const position = marker.getLatLng();
