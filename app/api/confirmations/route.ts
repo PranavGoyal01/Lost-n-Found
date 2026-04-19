@@ -1,11 +1,13 @@
 // app/api/confirmations/route.ts
 
+import { generateIdealDateFromK2 } from "@/lib/k2";
 import { PhotonSendError, sendPhoneNotification } from "@/lib/photon";
 import { supabase } from "@/lib/supabase";
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 
 type UserContact = { id: string; name: string | null; phone_number: string | null; likes: string | null; profile_picture: string | null };
+type MomentContext = { id: string; description: string | null; location: unknown; event_time: string | null };
 
 async function getUserContact(userId: string): Promise<UserContact | null> {
 	const { data } = await supabase.from("users").select("id, name, phone_number, likes, profile_picture").eq("id", userId).single();
@@ -13,9 +15,53 @@ async function getUserContact(userId: string): Promise<UserContact | null> {
 	return data;
 }
 
+async function getMomentsByIds(momentIds: string[]): Promise<MomentContext[]> {
+	if (momentIds.length === 0) return [];
+
+	const { data } = await supabase.from("moments").select("id, description, location, event_time").in("id", momentIds);
+	return (data ?? []) as MomentContext[];
+}
+
 function normalizeLikes(likes: string | null): string {
 	const value = likes?.trim();
 	return value && value.length > 0 ? value : "not shared";
+}
+
+function formatLocation(location: unknown): string {
+	if (!location) return "unknown location";
+
+	if (typeof location === "string") {
+		const pointMatch = location.match(/POINT\(([-0-9.]+)\s+([-0-9.]+)\)/i);
+		if (pointMatch) {
+			const lng = pointMatch[1];
+			const lat = pointMatch[2];
+			return `lat ${lat}, lng ${lng}`;
+		}
+
+		return location;
+	}
+
+	if (typeof location === "object" && location !== null) {
+		const maybeCoordinates = (location as { coordinates?: [number, number] }).coordinates;
+		if (Array.isArray(maybeCoordinates) && maybeCoordinates.length === 2) {
+			const [lng, lat] = maybeCoordinates;
+			return `lat ${lat}, lng ${lng}`;
+		}
+	}
+
+	return "unknown location";
+}
+
+function buildLocationContext(moments: MomentContext[]): string {
+	if (moments.length === 0) return "unknown location";
+
+	const segments = moments.map((moment) => {
+		const location = formatLocation(moment.location);
+		const time = moment.event_time ? new Date(moment.event_time).toISOString() : "unknown time";
+		return `moment ${moment.id} at ${location} around ${time}`;
+	});
+
+	return segments.join("; ");
 }
 
 function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): string {
@@ -40,6 +86,16 @@ function buildIdealDateIdea(myLikes: string | null, theirLikes: string | null): 
 	}
 
 	return "meet for a relaxed coffee and conversation at a spot you both like";
+}
+
+async function getIdealDateIdea(myLikes: string | null, theirLikes: string | null, locationContext: string): Promise<string> {
+	const k2Idea = await generateIdealDateFromK2({ userALikes: normalizeLikes(myLikes), userBLikes: normalizeLikes(theirLikes), locationContext });
+
+	if (k2Idea) {
+		return k2Idea;
+	}
+
+	return buildIdealDateIdea(myLikes, theirLikes);
 }
 
 function buildMatchedTemplate(theirPhone: string | null, theirLikes: string | null, idealDate: string): string {
@@ -107,8 +163,10 @@ export async function POST(req: NextRequest) {
 			await supabaseAuthenticated.from("matches").insert([{ user_a_id: updated.user_a_id, user_b_id: updated.user_b_id, moment_a_id: updated.moment_a_id, moment_b_id: updated.moment_b_id }]);
 
 			const [userA, userB] = await Promise.all([getUserContact(updated.user_a_id), getUserContact(updated.user_b_id)]);
-			const idealDateForA = buildIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null);
-			const idealDateForB = buildIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null);
+			const moments = await getMomentsByIds([updated.moment_a_id, updated.moment_b_id]);
+			const locationContext = buildLocationContext(moments);
+
+			const [idealDateForA, idealDateForB] = await Promise.all([getIdealDateIdea(userA?.likes ?? null, userB?.likes ?? null, locationContext), getIdealDateIdea(userB?.likes ?? null, userA?.likes ?? null, locationContext)]);
 
 			const messageForA = buildMatchedTemplate(userB?.phone_number ?? null, userB?.likes ?? null, idealDateForA);
 			const messageForB = buildMatchedTemplate(userA?.phone_number ?? null, userA?.likes ?? null, idealDateForB);
